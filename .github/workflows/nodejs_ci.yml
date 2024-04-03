@@ -1,0 +1,58 @@
+
+  name: Nodejs-Build
+  
+  on:
+    workflow_dispatch:
+      inputs:
+        logLevel:
+          description: 'Log level'
+          required: true
+          default: 'warning'
+  
+  jobs:
+    build:
+      runs-on: ubuntu-latest
+  
+      env:
+        NODE_OPTIONS: "--max-old-space-size=4144"
+  
+      steps:
+        - name: Checkout repository
+          uses: actions/checkout@v2
+  
+        - name: Setup Node.js
+          uses: actions/setup-node@v2
+          with:
+            node-version: 18.17.1
+  
+        - name: Install dependencies
+          run: npm install
+  
+        - name: Install react-scripts
+          run: npm install react-scripts --openssl-legacy-provider@latest
+  
+        - name: Install framer-motion
+          run: npm install framer-motion@v6.3.3
+  
+        - name: Update Browserslist
+          run: npx browserslist@latest --update-db
+  
+        - name: Print Heap Size Limit
+          run: node -e "console.log(v8.getHeapStatistics().heap_size_limit / (1024 * 1024))"
+  
+        - name: Build
+          run: npm run build
+  
+        - name: Archive build artifacts
+          uses: actions/upload-artifact@v2
+          with:
+            name: build-artifacts
+            path: build/*
+  
+        - name: Upload to AWS S3
+          run: |
+            aws s3 sync build/ s3://nife-s3/
+          env:
+            AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+            AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            AWS_DEFAULT_REGION: 'ap-south-1'
